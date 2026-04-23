@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earth Day — April 22, 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Averia+Serif+Libre:ital,wght@0,300;0,400;0,700;1,300;1,400&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --bg: #030806; --accent: oklch(0.68 0.13 168); }
+html, body { width:100vw; height:100vh; overflow:hidden; background:var(--bg); font-family:'Space Grotesk',sans-serif; color:#fff; }
+
+/* ═══ MOSAIC ═══ */
+#mosaic {
+  position:fixed; inset:0;
+  display:grid;
+  grid-template-columns:repeat(12,1fr);
+  grid-template-rows:repeat(6,1fr);
+  gap:3px; background:var(--bg);
+}
+.cell { overflow:hidden; position:relative; background:#0a160e; }
+.cell .photo {
+  position:absolute; inset:0;
+  background-size:cover; background-position:center;
+  opacity:0; transition:opacity 1.3s ease;
+}
+.cell .photo.vis { opacity:1; }
+.cell.kb .photo.vis { animation:kb 24s ease-in-out infinite alternate; }
+@keyframes kb {
+  from { transform:scale(1) translate(0,0); }
+  to   { transform:scale(1.1) translate(-2%,-1.5%); }
+}
+.cell .loc {
+  position:absolute; bottom:8px; right:10px; z-index:3;
+  font-family:'Space Grotesk',sans-serif; font-size:8.5px; font-weight:500;
+  letter-spacing:.2em; text-transform:uppercase;
+  color:rgba(255,255,255,.75); white-space:nowrap;
+  text-shadow:0 1px 6px rgba(0,0,0,.7);
+  pointer-events:none; transition:opacity .6s ease;
+}
+
+/* ═══ OVERLAY ═══ */
+#overlay {
+  position:fixed; inset:0; z-index:10; pointer-events:none;
+  background:
+    linear-gradient(180deg, rgba(3,8,6,.78) 0%, rgba(3,8,6,.22) 18%, rgba(3,8,6,.08) 45%, rgba(3,8,6,.32) 72%, rgba(3,8,6,.86) 100%),
+    radial-gradient(ellipse 72% 62% at 50% 50%, transparent 50%, rgba(3,8,6,.38) 100%);
+}
+#overlay::after {
+  content:''; position:absolute; inset:0; opacity:.22;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode:overlay;
+}
+
+/* ═══ QUOTE ═══ */
+#quote-stage {
+  position:fixed; inset:0; z-index:20;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  padding:0 clamp(28px,10vw,200px); pointer-events:none; text-align:center;
+}
+#eyebrow {
+  font-size:clamp(11px,.85vw,14px); font-weight:500; letter-spacing:.38em;
+  text-transform:uppercase; color:#fff;
+  margin-bottom:clamp(18px,2.8vh,36px); opacity:.85;
+}
+#quote-text {
+  font-family:'Averia Serif Libre',serif; font-weight:700;
+  font-size:clamp(22px,3.5vw,58px); line-height:1.2; letter-spacing:.05em;
+  text-transform:uppercase; color:#fff; max-width:860px;
+  text-wrap:balance; text-shadow:0 2px 60px rgba(0,0,0,.65);
+  transition:opacity .85s ease, transform .85s ease;
+}
+#quote-text.out { opacity:0; transform:translateY(10px); }
+#quote-attr {
+  font-family:'Averia Serif Libre',serif; font-style:italic;
+  font-size:clamp(11px,1.15vw,17px); color:rgba(255,255,255,.52);
+  margin-top:clamp(12px,2vh,24px); letter-spacing:.1em;
+  transition:opacity .85s ease;
+}
+#quote-attr.out { opacity:0; }
+
+/* ═══ GLOBE ═══ */
+#globe-wrap {
+  position:fixed; bottom:32px; right:32px; z-index:30;
+  display:flex; flex-direction:column; align-items:center; gap:9px;
+}
+#globe-ring { position:relative; width:180px; height:180px; touch-action:none; user-select:none; }
+#globe-ring::before {
+  content:''; position:absolute; inset:-9px; border-radius:50%;
+  border:1px solid rgba(48,190,130,.22);
+  animation:rpulse 4s ease-in-out infinite;
+}
+@keyframes rpulse { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:.85;transform:scale(1.045)} }
+#globe-canvas {
+  width:180px; height:180px; border-radius:50%; display:block;
+  filter:drop-shadow(0 0 28px rgba(44,190,125,.45)) drop-shadow(0 0 8px rgba(44,190,125,.28));
+}
+#region-badge {
+  font-size:9.5px; font-weight:500; letter-spacing:.3em;
+  text-transform:uppercase; color:var(--accent); opacity:.75;
+  white-space:nowrap; transition:opacity .4s;
+}
+
+/* ═══ DATE ═══ */
+#date-mark {
+  position:fixed; bottom:32px; left:32px; z-index:20;
+  font-size:12px; letter-spacing:.26em; text-transform:uppercase;
+  color:rgba(255,255,255,.75);
+}
+
+/* ═══ TWEAKS ═══ */
+#tweaks {
+  position:fixed; bottom:32px; right:228px; z-index:50;
+  background:rgba(6,14,10,.94); border:1px solid rgba(48,190,130,.22);
+  border-radius:14px; padding:18px 20px; width:210px;
+  display:none; flex-direction:column; gap:14px; backdrop-filter:blur(16px);
+}
+#tweaks.on { display:flex; }
+.tw-head { font-size:10px; font-weight:500; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); padding-bottom:8px; border-bottom:1px solid rgba(48,190,130,.15); }
+.tw-row { display:flex; flex-direction:column; gap:5px; }
+.tw-label { font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:rgba(255,255,255,.45); }
+.tw-row input[type=range] { accent-color:var(--accent); width:100%; cursor:pointer; }
+</style>
+</head>
+<body>
+<div id="mosaic"></div>
+<div id="overlay"></div>
+<div id="quote-stage">
+  <div id="eyebrow">Earth Day &nbsp;·&nbsp; April 22, 2026</div>
+  <div id="quote-text"></div>
+  <div id="quote-attr"></div>
+</div>
+<div id="globe-wrap">
+  <div id="globe-ring"><canvas id="globe-canvas"></canvas></div>
+  <div id="region-badge">Exploring Earth</div>
+</div>
+<div id="date-mark">April 22, 2026</div>
+<div id="tweaks">
+  <div class="tw-head">Tweaks</div>
+  <div class="tw-row"><div class="tw-label">Globe Speed</div><input type="range" id="tw-speed" min="0.2" max="6" step="0.1" value="1"></div>
+  <div class="tw-row"><div class="tw-label">Quote Interval (s)</div><input type="range" id="tw-interval" min="4" max="20" step="1" value="8"></div>
+  <div class="tw-row"><div class="tw-label">Overlay Darkness</div><input type="range" id="tw-dark" min="0.1" max="0.9" step="0.05" value="0.45"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// TWEAKS
+// ═══════════════════════════════════════════════════
+const TWEAK_DEFAULTS = {"globeSpeed":1,"quoteInterval":8,"overlayDarkness":0.45};
+let cfg = {...TWEAK_DEFAULTS};
+window.addEventListener('message', e => {
+  if (e.data?.type==='__activate_edit_mode')   document.getElementById('tweaks').classList.add('on');
+  if (e.data?.type==='__deactivate_edit_mode') document.getElementById('tweaks').classList.remove('on');
+});
+window.parent.postMessage({type:'__edit_mode_available'},'*');
+document.getElementById('tw-speed').addEventListener('input', e => { cfg.globeSpeed=+e.target.value; window.parent.postMessage({type:'__edit_mode_set_keys',edits:{globeSpeed:cfg.globeSpeed}},'*'); });
+document.getElementById('tw-interval').addEventListener('input', e => { cfg.quoteInterval=+e.target.value; restartQuoteTimer(); window.parent.postMessage({type:'__edit_mode_set_keys',edits:{quoteInterval:cfg.quoteInterval}},'*'); });
+document.getElementById('tw-dark').addEventListener('input', e => { cfg.overlayDarkness=+e.target.value; applyDarkness(cfg.overlayDarkness); window.parent.postMessage({type:'__edit_mode_set_keys',edits:{overlayDarkness:cfg.overlayDarkness}},'*'); });
+function applyDarkness(d) {
+  document.getElementById('overlay').style.background = `linear-gradient(180deg,rgba(3,8,6,${Math.min(.95,d+.33)}) 0%,rgba(3,8,6,${Math.max(0,d-.17)}) 18%,rgba(3,8,6,${Math.max(0,d-.3)}) 45%,rgba(3,8,6,${d}) 72%,rgba(3,8,6,${Math.min(.95,d+.4)}) 100%)`;
+}
+
+// ═══════════════════════════════════════════════════
+// QUOTES
+// ═══════════════════════════════════════════════════
+const QUOTES = [
+  {text:"What\u2019s the use of a house if you haven\u2019t got a tolerable planet to put it on?", attr:"\u2014 Henry David Thoreau"},
+  {text:"One planet, one experiment.", attr:"\u2014 Edward O. Wilson"},
+  {text:"One touch of nature makes the whole world kin.", attr:"\u2014 William Shakespeare"},
+  {text:"The bluebird carries the sky on his back.", attr:"\u2014 Henry David Thoreau"},
+  {text:"Between every two pines is a doorway to a new world.", attr:"\u2014 John Muir"},
+  {text:"Conservation is a state of harmony between men and land.", attr:"\u2014 Aldo Leopold"},
+  {text:"The question is not what you look at, but what you see.", attr:"\u2014 Henry David Thoreau"},
+  {text:"I am I plus my surroundings and if I do not preserve the latter, I do not preserve myself.", attr:"\u2014 Jos\u00e9 Ortega y Gasset"},
+  {text:"The best time to plant a tree was twenty years ago. The second best time is now.", attr:"\u2014 Proverb"},
+  {text:"Everyone must take time to sit and watch the leaves turn.", attr:"\u2014 Elizabeth Lawrence"},
+  {text:"We could have saved the Earth, but we were too damned cheap.", attr:"\u2014 Kurt Vonnegut Jr."},
+  {text:"God bless America. Let\u2019s save some of it.", attr:"\u2014 Edward Abbey"},
+  {text:"He who plants a tree plants a hope.", attr:"\u2014 Lucy Larcom"},
+  {text:"Man shapes himself through decisions that shape his environment.", attr:"\u2014 Ren\u00e9 Dubos"},
+  {text:"Even if I knew that tomorrow the world would go to pieces, I would still plant my apple tree.", attr:"\u2014 Martin Luther King Jr."},
+  {text:"I think having land and not ruining it is the most beautiful art that anybody could ever want to own.", attr:"\u2014 Andy Warhol"},
+  {text:"No two gardens are the same. No two days are the same in one garden.", attr:"\u2014 Hugh Johnson"},
+  {text:"Everybody needs beauty as well as bread, places to play in and pray in, where Nature may heal and give strength to body and soul.", attr:"\u2014 John Muir"},
+  {text:"For a successful technology, reality must take precedence over public relations, for Nature cannot be fooled.", attr:"\u2014 Richard P. Feynman"},
+  {text:"May your trails be crooked, winding, lonesome, dangerous, leading to the most amazing view.", attr:"\u2014 Edward Abbey"},
+];
+const qText = document.getElementById('quote-text');
+const qAttr = document.getElementById('quote-attr');
+let quoteTimer=null, lastIdx=-1;
+
+function showQuote(idx) {
+  qText.classList.add('out'); qAttr.classList.add('out');
+  setTimeout(() => {
+    qText.textContent = '\u201C'+QUOTES[idx].text+'\u201D';
+    qAttr.textContent = QUOTES[idx].attr;
+    qText.classList.remove('out'); qAttr.classList.remove('out');
+  }, 880);
+}
+function nextQuote() {
+  let idx; do { idx=Math.floor(Math.random()*QUOTES.length); } while(idx===lastIdx);
+  lastIdx=idx; showQuote(idx);
+}
+function restartQuoteTimer() { clearInterval(quoteTimer); quoteTimer=setInterval(nextQuote, cfg.quoteInterval*1000); }
+
+// Show first quote immediately
+lastIdx=0;
+qText.textContent='\u201C'+QUOTES[0].text+'\u201D';
+qAttr.textContent=QUOTES[0].attr;
+setTimeout(restartQuoteTimer, cfg.quoteInterval*1000);
+
+// ═══════════════════════════════════════════════════
+// LOCAL UNSPLASH IMAGES — one per scene × region
+// ═══════════════════════════════════════════════════
+const CELL_SCENE = ['mountains','ocean','forest','desert','valley','canyon','coast','tropical','aurora'];
+
+const REGION_SLUG = {
+  americas:     'americas',
+  europeAfrica: 'europeafrica',
+  asiaPacific:  'asiapacific',
+};
+
+// ── Location labels per cell index, per region
+const LABELS = {
+  americas:     ['Rocky Mountains, USA','Pacific Coast, USA','Redwood Forest, CA','Grand Canyon, AZ','Pacific Northwest','Colorado River Canyon','New England Coast','Caribbean Sea','Alaska, USA'],
+  europeAfrica: ['Swiss Alps','Mediterranean Sea','Black Forest, Germany','Sahara Desert','Tuscany, Italy','Atlas Mountains, Morocco','White Cliffs of Dover','Zanzibar, Tanzania','Norway'],
+  asiaPacific:  ['Himalayas','Maldives','Tropical Rainforest, Asia','Gobi Desert, Mongolia','Guilin, China','Zhangjiajie, China','Hạ Long Bay, Vietnam','Bali, Indonesia','New Zealand'],
+};
+
+// ── 5 distinct mosaic layouts [colStart,colEnd,rowStart,rowEnd,kenBurns]
+// Each covers the full 12×6 grid with exactly 9 non-overlapping cells
+const GRID_LAYOUTS = [
+  // A – original: large top-left
+  [[1,5,1,5,1],[5,9,1,3,0],[9,13,1,4,1],[5,7,3,5,0],[7,9,3,5,1],[9,13,4,7,0],[1,5,5,7,1],[5,7,5,7,0],[7,9,5,7,0]],
+  // B – tall left pillar, grid right
+  [[1,4,1,7,1],[4,9,1,3,0],[9,13,1,3,1],[4,7,3,5,0],[7,10,3,5,1],[10,13,3,5,0],[4,7,5,7,1],[7,10,5,7,0],[10,13,5,7,1]],
+  // C – wide top banner, bottom grid
+  [[1,13,1,3,1],[1,4,3,5,0],[4,7,3,5,1],[7,10,3,5,0],[10,13,3,5,1],[1,4,5,7,0],[4,7,5,7,1],[7,10,5,7,0],[10,13,5,7,1]],
+  // D – two tall side pillars, center grid
+  [[1,4,1,3,0],[4,10,1,3,1],[10,13,1,3,0],[1,4,3,7,1],[4,7,3,5,0],[7,10,3,5,1],[10,13,3,7,0],[4,7,5,7,1],[7,10,5,7,0]],
+  // E – large top-right (mirror of A)
+  [[9,13,1,5,1],[5,9,1,3,0],[1,5,1,4,1],[7,9,3,5,0],[5,7,3,5,1],[1,5,4,7,0],[9,13,5,7,1],[7,9,5,7,0],[5,7,5,7,0]],
+];
+
+let currentLayoutIdx = -1;
+let firstRegionLoad  = true;
+let transitioning    = false;
+
+const FADE_STAGGER = 380;  // total ms spread left→right across columns
+const FADE_OUT_MS  = 260;  // per-cell fade-out duration
+const FADE_IN_MS   = 420;  // per-cell fade-in duration
+
+function colDelay(cs) {
+  // cs: grid column start (1–12) → delay in ms, left cols first
+  return ((cs - 1) / 11) * FADE_STAGGER;
+}
+
+const mosaicEl = document.getElementById('mosaic');
+const cells = [];
+
+// Create 9 cells — start invisible; fadeInCells() reveals them left-to-right
+for (let i = 0; i < 9; i++) {
+  const div = document.createElement('div');
+  div.className = 'cell';
+  div.style.opacity = '0';
+  const dA = document.createElement('div'); dA.className = 'photo';
+  const dB = document.createElement('div'); dB.className = 'photo';
+  const loc = document.createElement('span'); loc.className = 'loc';
+  div.appendChild(dA); div.appendChild(dB); div.appendChild(loc);
+  mosaicEl.appendChild(div);
+  cells.push({ div, divs:[dA,dB], loc, active:0 });
+}
+
+let currentRegion = null;
+
+function applyLayoutInstant(key, layout) {
+  // Swap grid positions + images with no visible transition (called while cells are faded out)
+  document.getElementById('region-badge').textContent = {
+    americas:'The Americas', europeAfrica:'Europe & Africa', asiaPacific:'Asia & Pacific'
+  }[key];
+  const slug = REGION_SLUG[key];
+  cells.forEach((cell, i) => {
+    const [cs, ce, rs, re, kb] = layout[i];
+    cell.div.style.gridColumn = `${cs}/${ce}`;
+    cell.div.style.gridRow    = `${rs}/${re}`;
+    cell.div.className = 'cell' + (kb ? ' kb' : '');
+    cell.loc.textContent = LABELS[key][i];
+
+    const next = 1 - cell.active;
+    const nd   = cell.divs[next];
+    nd.style.backgroundImage = `url('images/${CELL_SCENE[i]}-${slug}.jpg')`;
+    // Swap instantly — cell is invisible so no crossfade needed
+    nd.style.transition = 'none';
+    cell.divs[cell.active].classList.remove('vis');
+    nd.classList.add('vis');
+    cell.active = next;
+    // Restore photo transition after paint so Ken Burns still works
+    requestAnimationFrame(() => requestAnimationFrame(() => { nd.style.transition = ''; }));
+  });
+}
+
+function fadeOutCells(layout) {
+  return new Promise(resolve => {
+    let maxDelay = 0;
+    cells.forEach((cell, i) => {
+      const delay = colDelay(layout[i][0]);
+      if (delay > maxDelay) maxDelay = delay;
+      setTimeout(() => {
+        cell.div.style.transition = `opacity ${FADE_OUT_MS}ms ease`;
+        cell.div.style.opacity = '0';
+      }, delay);
+    });
+    setTimeout(resolve, maxDelay + FADE_OUT_MS + 20);
+  });
+}
+
+function fadeInCells(layout) {
+  cells.forEach((cell, i) => {
+    const delay = colDelay(layout[i][0]);
+    setTimeout(() => {
+      cell.div.style.transition = `opacity ${FADE_IN_MS}ms ease`;
+      cell.div.style.opacity = '1';
+    }, delay);
+  });
+}
+
+function setRegion(key) {
+  if (key === currentRegion || transitioning) return;
+  currentRegion = key;
+
+  // Pick a new layout, never repeating the previous one
+  let idx;
+  do { idx = Math.floor(Math.random() * GRID_LAYOUTS.length); } while (idx === currentLayoutIdx && GRID_LAYOUTS.length > 1);
+  const prevLayout = currentLayoutIdx >= 0 ? GRID_LAYOUTS[currentLayoutIdx] : null;
+  currentLayoutIdx = idx;
+  const layout = GRID_LAYOUTS[idx];
+
+  if (firstRegionLoad) {
+    firstRegionLoad = false;
+    // Apply immediately — photos fade in naturally via their own .vis transition
+    applyLayoutInstant(key, layout);
+    fadeInCells(layout); // stagger cells in from left on initial load too
+    return;
+  }
+
+  transitioning = true;
+  fadeOutCells(prevLayout || layout).then(() => {
+    applyLayoutInstant(key, layout);
+    fadeInCells(layout);
+    setTimeout(() => { transitioning = false; }, FADE_STAGGER + FADE_IN_MS + 50);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// THREE.JS GLOBE — satellite imagery textures
+// ═══════════════════════════════════════════════════
+const globeCanvas = document.getElementById('globe-canvas');
+const renderer = new THREE.WebGLRenderer({canvas:globeCanvas, alpha:true, antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setSize(180,180);
+renderer.setClearColor(0x000000,0);
+
+const scene=new THREE.Scene(), camera=new THREE.PerspectiveCamera(38,1,.1,100);
+camera.position.z=2.85;
+
+// Load satellite textures from CDN (works from file:// since it's HTTPS with CORS headers)
+const texLoader = new THREE.TextureLoader();
+const earthTex  = texLoader.load('https://threejs.org/examples/textures/planets/earth_atmos_2048.jpg');
+const earthNorm = texLoader.load('https://threejs.org/examples/textures/planets/earth_normal_2048.jpg');
+const earthSpec = texLoader.load('https://threejs.org/examples/textures/planets/earth_specular_2048.jpg');
+
+// Earth — satellite texture + normal + specular maps
+const earthMesh=new THREE.Mesh(
+  new THREE.SphereGeometry(1,64,64),
+  new THREE.MeshPhongMaterial({
+    map:         earthTex,
+    normalMap:   earthNorm,
+    normalScale: new THREE.Vector2(0.6, 0.6),
+    specularMap: earthSpec,
+    specular:    new THREE.Color(0x4488cc),
+    shininess:   25,
+  })
+);
+scene.add(earthMesh);
+
+// Cloud layer — procedural wisps as alpha mask
+function makeCloudCanvas() {
+  const W=1024, H=512, c=document.createElement('canvas');
+  c.width=W; c.height=H;
+  const ctx=c.getContext('2d');
+  ctx.fillStyle='black'; ctx.fillRect(0,0,W,H);
+  for(let i=0;i<38;i++){
+    const y=(i/38)*H+(Math.random()-.5)*60;
+    const x0=Math.random()*W, x1=x0+60+Math.random()*320;
+    ctx.globalAlpha=.06+Math.random()*.16;
+    ctx.strokeStyle='white'; ctx.lineWidth=18+Math.random()*16;
+    ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(x0,y+(Math.random()-.5)*20);
+    ctx.bezierCurveTo(x0+(x1-x0)*.3,y+(Math.random()-.5)*30,x0+(x1-x0)*.7,y+(Math.random()-.5)*30,x1,y+(Math.random()-.5)*20);
+    ctx.stroke();
+  }
+  return c;
+}
+const cloudMesh=new THREE.Mesh(
+  new THREE.SphereGeometry(1.012,48,48),
+  new THREE.MeshPhongMaterial({
+    alphaMap:    new THREE.CanvasTexture(makeCloudCanvas()),
+    transparent: true, color:0xffffff, opacity:.26, depthWrite:false
+  })
+);
+scene.add(cloudMesh);
+
+// Atmosphere glow
+scene.add(new THREE.Mesh(
+  new THREE.SphereGeometry(1.18,32,32),
+  new THREE.ShaderMaterial({
+    vertexShader:`varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+    fragmentShader:`varying vec3 vN;void main(){float r=pow(max(0.,.72-dot(vN,vec3(0,0,1))),2.6);gl_FragColor=vec4(.18,.55,.95,1.)*r;}`,
+    side:THREE.BackSide,blending:THREE.AdditiveBlending,transparent:true,depthWrite:false
+  })
+));
+
+// Stars
+const sp=new Float32Array(900);
+for(let i=0;i<300;i++){const t=Math.random()*Math.PI*2,p=Math.acos(2*Math.random()-1),r=12+Math.random()*8;sp[i*3]=r*Math.sin(p)*Math.cos(t);sp[i*3+1]=r*Math.sin(p)*Math.sin(t);sp[i*3+2]=r*Math.cos(p);}
+const sg=new THREE.BufferGeometry(); sg.setAttribute('position',new THREE.BufferAttribute(sp,3));
+scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0xffffff,size:.05,transparent:true,opacity:.6})));
+
+// Lighting — bright ambient so the night side stays visible against the dark bg
+scene.add(new THREE.AmbientLight(0x99bbdd, 1.6));
+const sun=new THREE.DirectionalLight(0xfff8e0,2.4); sun.position.set(5,2,4); scene.add(sun);
+// Soft fill from the back so the Pacific hemisphere doesn't disappear
+const fill=new THREE.DirectionalLight(0x3355aa,0.55); fill.position.set(-4,-1,-3); scene.add(fill);
+
+function getRegion(ry){
+  const a=((ry%(Math.PI*2))+Math.PI*2)%(Math.PI*2), P=Math.PI;
+  if(a>P*.18&&a<=P*.82)  return 'americas';
+  if(a>P*.82&&a<=P*1.18) return 'europeAfrica';
+  return 'asiaPacific';
+}
+
+// ═══════════════════════════════════════════════════
+// GLOBE DRAG INTERACTION
+// ═══════════════════════════════════════════════════
+const globeRing = document.getElementById('globe-ring');
+globeRing.style.cursor = 'grab';
+
+const DRAG_SENSITIVITY = 0.007; // radians per pixel
+let autoRotate = true;
+let isDragging = false;
+let dragLastX  = 0;
+let dragVelX   = 0;   // pixel/frame velocity for inertia
+let inertiaRAF = null;
+
+function syncBadge(key) {
+  document.getElementById('region-badge').textContent =
+    {americas:'The Americas', europeAfrica:'Europe & Africa', asiaPacific:'Asia & Pacific'}[key];
+}
+
+globeRing.addEventListener('pointerdown', e => {
+  isDragging  = true;
+  autoRotate  = false;
+  dragLastX   = e.clientX;
+  dragVelX    = 0;
+  cancelAnimationFrame(inertiaRAF);
+  globeRing.setPointerCapture(e.pointerId);
+  globeRing.style.cursor = 'grabbing';
+});
+
+globeRing.addEventListener('pointermove', e => {
+  if (!isDragging) return;
+  const dx = e.clientX - dragLastX;
+  dragVelX  = dx;
+  dragLastX = e.clientX;
+  earthMesh.rotation.y += dx * DRAG_SENSITIVITY;
+  cloudMesh.rotation.y += dx * DRAG_SENSITIVITY * 1.12;
+  // Update badge live while dragging
+  const r = getRegion(earthMesh.rotation.y);
+  if (r !== lastRegion) { lastRegion = r; syncBadge(r); }
+});
+
+globeRing.addEventListener('pointerup', () => {
+  if (!isDragging) return;
+  isDragging = false;
+  globeRing.style.cursor = 'grab';
+  startInertia(dragVelX * DRAG_SENSITIVITY);
+});
+
+globeRing.addEventListener('pointercancel', () => {
+  isDragging = false;
+  globeRing.style.cursor = 'grab';
+  startInertia(0);
+});
+
+function startInertia(vel) {
+  cancelAnimationFrame(inertiaRAF);
+  (function step() {
+    if (Math.abs(vel) < 0.0003) {
+      // Settled — commit region change with photo transition
+      autoRotate = true;
+      const r = getRegion(earthMesh.rotation.y);
+      lastRegion = r;
+      setRegion(r);
+      return;
+    }
+    earthMesh.rotation.y += vel;
+    cloudMesh.rotation.y += vel * 1.12;
+    vel *= 0.86;
+    // Badge tracks inertia too
+    const r = getRegion(earthMesh.rotation.y);
+    if (r !== lastRegion) { lastRegion = r; syncBadge(r); }
+    inertiaRAF = requestAnimationFrame(step);
+  })();
+}
+
+// ═══════════════════════════════════════════════════
+// RENDER LOOP
+// ═══════════════════════════════════════════════════
+const BASE_SPEED=.0018; let lastRegion=null;
+(function loop(){
+  requestAnimationFrame(loop);
+  if (autoRotate) {
+    const spd=BASE_SPEED*cfg.globeSpeed;
+    earthMesh.rotation.y+=spd; cloudMesh.rotation.y+=spd*1.12;
+    const r=getRegion(earthMesh.rotation.y);
+    if(r!==lastRegion){lastRegion=r;setRegion(r);}
+  }
+  renderer.render(scene,camera);
+})();
+
+setRegion('asiaPacific');
+</script>
+</body>
+</html>
