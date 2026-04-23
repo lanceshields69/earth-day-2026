@@ -386,13 +386,22 @@ function applyLayoutInstant(key, layout) {
   const areas   = layout.map(([cs,ce,rs,re]) => (ce-cs)*(re-rs));
   const ranked  = areas.map((a,i) => [a,i]).sort((x,y) => y[0]-x[0]);
   const kbCount = 3 + Math.round(Math.random());           // 3 or 4
-  const kbIdx   = new Set(ranked.slice(0, kbCount).map(x => x[1]));
-  const inCount = Math.round(kbCount / 2);
-  const variants = [
+  const largeSet = new Set(ranked.slice(0, kbCount).map(x => x[1]));
+  const inCount  = Math.round(kbCount / 2);
+  const largeVariants = [
     ...pickN(KB_IN,  inCount),
     ...pickN(KB_OUT, kbCount - inCount),
   ].sort(() => Math.random() - 0.5);
+
+  // Pick 1 small cell (bottom 3 by area, not already chosen) for an extra zoom-out
+  const smallPool = ranked.slice(-3).map(x => x[1]).filter(i => !largeSet.has(i));
+  const smallIdx  = smallPool.length ? smallPool[Math.floor(Math.random() * smallPool.length)] : null;
+
+  // Build index → variant map
+  const kbMap = new Map();
   let vIdx = 0;
+  largeSet.forEach(i => kbMap.set(i, largeVariants[vIdx++]));
+  if (smallIdx !== null) kbMap.set(smallIdx, pickN(KB_OUT, 1)[0]);
 
   cells.forEach((cell, i) => {
     const [cs, ce, rs, re] = layout[i];
@@ -414,11 +423,10 @@ function applyLayoutInstant(key, layout) {
     old.style.animationDelay = '';
 
     // Apply KB to incoming photo if selected
-    if (kbIdx.has(i)) {
-      const v = variants[vIdx++];
+    if (kbMap.has(i)) {
       nd.classList.add('kb');
-      nd.style.animationName  = v;
-      nd.style.animationDelay = `-${(Math.random() * 26).toFixed(1)}s`; // random phase
+      nd.style.animationName  = kbMap.get(i);
+      nd.style.animationDelay = `-${(Math.random() * 26).toFixed(1)}s`;
     } else {
       nd.classList.remove('kb');
       nd.style.animationName  = '';
