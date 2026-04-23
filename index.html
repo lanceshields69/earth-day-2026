@@ -393,15 +393,15 @@ function applyLayoutInstant(key, layout) {
     ...pickN(KB_OUT, kbCount - inCount),
   ].sort(() => Math.random() - 0.5);
 
-  // Pick 1 small cell (bottom 3 by area, not already chosen) for an extra zoom-out
-  const smallPool = ranked.slice(-3).map(x => x[1]).filter(i => !largeSet.has(i));
+  // Pick 1 small cell (bottom 5 by area, not already chosen) for an extra zoom-out
+  const smallPool = ranked.slice(-5).map(x => x[1]).filter(i => !largeSet.has(i));
   const smallIdx  = smallPool.length ? smallPool[Math.floor(Math.random() * smallPool.length)] : null;
 
   // Build index → variant map
   const kbMap = new Map();
   let vIdx = 0;
-  largeSet.forEach(i => kbMap.set(i, largeVariants[vIdx++]));
-  if (smallIdx !== null) kbMap.set(smallIdx, pickN(KB_OUT, 1)[0]);
+  largeSet.forEach(i => kbMap.set(i, { variant: largeVariants[vIdx++], duration: '26s' }));
+  if (smallIdx !== null) kbMap.set(smallIdx, { variant: pickN(KB_OUT, 1)[0], duration: '16s' });
 
   cells.forEach((cell, i) => {
     const [cs, ce, rs, re] = layout[i];
@@ -419,18 +419,22 @@ function applyLayoutInstant(key, layout) {
 
     // Clear KB from outgoing photo
     old.classList.remove('vis', 'kb');
-    old.style.animationName  = '';
-    old.style.animationDelay = '';
+    old.style.animationName     = '';
+    old.style.animationDuration = '';
+    old.style.animationDelay    = '';
 
     // Apply KB to incoming photo if selected
     if (kbMap.has(i)) {
+      const { variant, duration } = kbMap.get(i);
       nd.classList.add('kb');
-      nd.style.animationName  = kbMap.get(i);
-      nd.style.animationDelay = `-${(Math.random() * 26).toFixed(1)}s`;
+      nd.style.animationName     = variant;
+      nd.style.animationDuration = duration;
+      nd.style.animationDelay    = `-${(Math.random() * parseFloat(duration)).toFixed(1)}s`;
     } else {
       nd.classList.remove('kb');
-      nd.style.animationName  = '';
-      nd.style.animationDelay = '';
+      nd.style.animationName     = '';
+      nd.style.animationDuration = '';
+      nd.style.animationDelay    = '';
     }
 
     nd.classList.add('vis');
