@@ -434,10 +434,20 @@ const sun=new THREE.DirectionalLight(0xfff8e0,2.4); sun.position.set(5,2,4); sce
 const fill=new THREE.DirectionalLight(0x3355aa,0.55); fill.position.set(-4,-1,-3); scene.add(fill);
 
 function getRegion(ry){
+  // At rotation.y=0 the camera sees lon≈-90° (Americas).
+  // As rotation.y increases the visible longitude decreases:
+  //   0      → lon -90°  Americas
+  //   π/2    → lon -180° Pacific (IDL)
+  //   π      → lon +90°  Asia
+  //   3π/2   → lon 0°    Europe/Africa
+  // Boundaries derived from u_visible = 0.25 - ry/(2π):
+  //   lon -160° (W Pacific/Polynesia) → ry ≈ 0.39π  (Americas ↔ Asia/Pacific)
+  //   lon  +65° (E Africa/India)      → ry ≈ 1.14π  (Asia/Pacific ↔ Europe/Africa)
+  //   lon  -25° (Mid-Atlantic)        → ry ≈ 1.64π  (Europe/Africa ↔ Americas)
   const a=((ry%(Math.PI*2))+Math.PI*2)%(Math.PI*2), P=Math.PI;
-  if(a>P*.18&&a<=P*.82)  return 'americas';
-  if(a>P*.82&&a<=P*1.18) return 'europeAfrica';
-  return 'asiaPacific';
+  if(a>P*0.39&&a<=P*1.14) return 'asiaPacific';
+  if(a>P*1.14&&a<=P*1.64) return 'europeAfrica';
+  return 'americas';
 }
 
 // ═══════════════════════════════════════════════════
