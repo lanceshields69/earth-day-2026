@@ -383,26 +383,13 @@ function applyLayoutInstant(key, layout) {
   }[key];
   const slug = REGION_SLUG[key];
 
-  // Pick 3 or 4 of the largest cells for Ken Burns, ~half zoom-in ~half zoom-out
-  const areas   = layout.map(([cs,ce,rs,re]) => (ce-cs)*(re-rs));
-  const ranked  = areas.map((a,i) => [a,i]).sort((x,y) => y[0]-x[0]);
-  const kbCount = 3 + Math.round(Math.random());           // 3 or 4
-  const largeSet = new Set(ranked.slice(0, kbCount).map(x => x[1]));
-  const inCount  = Math.round(kbCount / 2);
-  const largeVariants = [
-    ...pickN(KB_IN,  inCount),
-    ...pickN(KB_OUT, kbCount - inCount),
+  // All 9 cells get Ken Burns — ~half zoom-in, ~half zoom-out, all randomised
+  const variants = [
+    ...pickN(KB_IN,  5),
+    ...pickN(KB_OUT, 4),
   ].sort(() => Math.random() - 0.5);
-
-  // Pick 1 small cell (bottom 5 by area, not already chosen) for an extra zoom-out
-  const smallPool = ranked.slice(-5).map(x => x[1]).filter(i => !largeSet.has(i));
-  const smallIdx  = smallPool.length ? smallPool[Math.floor(Math.random() * smallPool.length)] : null;
-
-  // Build index → variant map
   const kbMap = new Map();
-  let vIdx = 0;
-  largeSet.forEach(i => kbMap.set(i, { variant: largeVariants[vIdx++], duration: '26s' }));
-  if (smallIdx !== null) kbMap.set(smallIdx, { variant: pickN(KB_OUT, 1)[0], duration: '16s' });
+  variants.forEach((v, i) => kbMap.set(i, { variant: v, duration: '26s' }));
 
   cells.forEach((cell, i) => {
     const [cs, ce, rs, re] = layout[i];
