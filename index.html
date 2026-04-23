@@ -555,6 +555,10 @@ function startInertia(vel) {
 // ═══════════════════════════════════════════════════
 // RENDER LOOP
 // ═══════════════════════════════════════════════════
+// Start with the mid-Atlantic centered so the Americas roll in from the right edge
+earthMesh.rotation.y = Math.PI * 1.66;
+cloudMesh.rotation.y = Math.PI * 1.66;
+
 const BASE_SPEED=.0018; let lastRegion=null;
 (function loop(){
   requestAnimationFrame(loop);
@@ -567,7 +571,7 @@ const BASE_SPEED=.0018; let lastRegion=null;
   renderer.render(scene,camera);
 })();
 
-setRegion('asiaPacific');
+setRegion('americas');
 </script>
 </body>
 </html>
