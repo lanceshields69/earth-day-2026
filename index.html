@@ -27,11 +27,20 @@ html, body { width:100vw; height:100vh; overflow:hidden; background:var(--bg); f
   opacity:0; transition:opacity 1.3s ease;
 }
 .cell .photo.vis { opacity:1; }
-.cell.kb .photo.vis { animation:kb 24s ease-in-out infinite alternate; }
-@keyframes kb {
-  from { transform:scale(1) translate(0,0); }
-  to   { transform:scale(1.1) translate(-2%,-1.5%); }
+.cell .photo.vis.kb {
+  animation-duration:26s; animation-timing-function:ease-in-out;
+  animation-iteration-count:infinite; animation-direction:alternate;
 }
+/* zoom-in variants */
+@keyframes kbA{0%{transform:scale(1) translate(0,0)}      100%{transform:scale(1.12) translate(-2%,-1.5%)}}
+@keyframes kbB{0%{transform:scale(1) translate(0,0)}      100%{transform:scale(1.12) translate(2%,-1.5%)}}
+@keyframes kbC{0%{transform:scale(1) translate(0,0)}      100%{transform:scale(1.11) translate(-1.5%,1.5%)}}
+@keyframes kbD{0%{transform:scale(1) translate(0,0)}      100%{transform:scale(1.13) translate(1.5%,1%)}}
+/* zoom-out variants */
+@keyframes kbE{0%{transform:scale(1.12) translate(-2%,-1.5%)} 100%{transform:scale(1) translate(0,0)}}
+@keyframes kbF{0%{transform:scale(1.12) translate(2%,-1.5%)}  100%{transform:scale(1) translate(0,0)}}
+@keyframes kbG{0%{transform:scale(1.11) translate(-1.5%,1.5%)}100%{transform:scale(1) translate(0,0)}}
+@keyframes kbH{0%{transform:scale(1.13) translate(1.5%,1%)}   100%{transform:scale(1) translate(0,0)}}
 .cell .loc {
   position:absolute; bottom:8px; right:10px; z-index:3;
   font-family:'Space Grotesk',sans-serif; font-size:8.5px; font-weight:500;
@@ -359,28 +368,65 @@ for (let i = 0; i < 9; i++) {
 
 let currentRegion = null;
 
+const KB_IN  = ['kbA','kbB','kbC','kbD'];
+const KB_OUT = ['kbE','kbF','kbG','kbH'];
+function pickN(arr, n) {
+  const s = [...arr].sort(() => Math.random() - 0.5);
+  return s.slice(0, n);
+}
+
 function applyLayoutInstant(key, layout) {
   // Swap grid positions + images with no visible transition (called while cells are faded out)
   document.getElementById('region-badge').textContent = {
     americas:'The Americas', europeAfrica:'Europe & Africa', asiaPacific:'Asia & Pacific'
   }[key];
   const slug = REGION_SLUG[key];
+
+  // Pick 3 or 4 of the largest cells for Ken Burns, ~half zoom-in ~half zoom-out
+  const areas   = layout.map(([cs,ce,rs,re]) => (ce-cs)*(re-rs));
+  const ranked  = areas.map((a,i) => [a,i]).sort((x,y) => y[0]-x[0]);
+  const kbCount = 3 + Math.round(Math.random());           // 3 or 4
+  const kbIdx   = new Set(ranked.slice(0, kbCount).map(x => x[1]));
+  const inCount = Math.round(kbCount / 2);
+  const variants = [
+    ...pickN(KB_IN,  inCount),
+    ...pickN(KB_OUT, kbCount - inCount),
+  ].sort(() => Math.random() - 0.5);
+  let vIdx = 0;
+
   cells.forEach((cell, i) => {
-    const [cs, ce, rs, re, kb] = layout[i];
+    const [cs, ce, rs, re] = layout[i];
     cell.div.style.gridColumn = `${cs}/${ce}`;
     cell.div.style.gridRow    = `${rs}/${re}`;
-    cell.div.className = 'cell' + (kb ? ' kb' : '');
+    cell.div.className = 'cell';
     cell.loc.textContent = LABELS[key][i];
 
     const next = 1 - cell.active;
     const nd   = cell.divs[next];
+    const old  = cell.divs[cell.active];
+
     nd.style.backgroundImage = `url('images/${CELL_SCENE[i]}-${slug}.jpg')`;
-    // Swap instantly — cell is invisible so no crossfade needed
     nd.style.transition = 'none';
-    cell.divs[cell.active].classList.remove('vis');
+
+    // Clear KB from outgoing photo
+    old.classList.remove('vis', 'kb');
+    old.style.animationName  = '';
+    old.style.animationDelay = '';
+
+    // Apply KB to incoming photo if selected
+    if (kbIdx.has(i)) {
+      const v = variants[vIdx++];
+      nd.classList.add('kb');
+      nd.style.animationName  = v;
+      nd.style.animationDelay = `-${(Math.random() * 26).toFixed(1)}s`; // random phase
+    } else {
+      nd.classList.remove('kb');
+      nd.style.animationName  = '';
+      nd.style.animationDelay = '';
+    }
+
     nd.classList.add('vis');
     cell.active = next;
-    // Restore photo transition after paint so Ken Burns still works
     requestAnimationFrame(() => requestAnimationFrame(() => { nd.style.transition = ''; }));
   });
 }
