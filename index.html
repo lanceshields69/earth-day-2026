@@ -6,6 +6,7 @@
 <title>Earth Day — April 22, 2026</title>
 <link href="https://fonts.googleapis.com/css2?family=Averia+Serif+Libre:ital,wght@0,300;0,400;0,700;1,300;1,400&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/three@0.158.0/build/three.min.js"></script>
+<script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root { --bg: #030806; --accent: oklch(0.68 0.13 168); }
@@ -115,11 +116,27 @@ html, body { width:100vw; height:100vh; overflow:hidden; background:var(--bg); f
   width:180px; height:180px; border-radius:50%; display:block;
   filter:drop-shadow(0 0 28px rgba(44,190,125,.45)) drop-shadow(0 0 8px rgba(44,190,125,.28));
 }
+#globe-bottom {
+  display:flex; align-items:center; gap:9px;
+}
 #region-badge {
   font-size:9.5px; font-weight:500; letter-spacing:.3em;
   text-transform:uppercase; color:var(--accent); opacity:.75;
   white-space:nowrap; transition:opacity .4s;
 }
+#play-btn {
+  flex-shrink:0;
+  width:26px; height:26px; border-radius:50%;
+  border:1px solid rgba(48,190,130,.35);
+  background:rgba(48,190,130,.08);
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; color:var(--accent);
+  transition:background .2s, border-color .2s, opacity .2s;
+  padding:0;
+}
+#play-btn:hover { background:rgba(48,190,130,.2); border-color:rgba(48,190,130,.65); }
+#play-btn svg { width:9px; height:9px; display:block; }
+#play-btn .icon-pause { display:none; }
 
 /* ═══ SPOTIFY ═══ */
 #spotify-wrap {
@@ -162,12 +179,16 @@ html, body { width:100vw; height:100vh; overflow:hidden; background:var(--bg); f
     <span class="globe-arrow left"><svg viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6,1 1,7 6,13"/></svg></span>
     <span class="globe-arrow right"><svg viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,1 7,7 2,13"/></svg></span>
   </div>
-  <div id="region-badge">Exploring Earth</div>
+  <div id="globe-bottom">
+    <button id="play-btn" aria-label="Play / pause">
+      <svg class="icon-play" viewBox="0 0 9 11" fill="currentColor"><polygon points="0,0 9,5.5 0,11"/></svg>
+      <svg class="icon-pause" viewBox="0 0 9 11" fill="currentColor"><rect x="0" y="0" width="3" height="11"/><rect x="6" y="0" width="3" height="11"/></svg>
+    </button>
+    <div id="region-badge">Exploring Earth</div>
+  </div>
 </div>
 <div id="date-mark">April 22, 2026</div>
-<div id="spotify-wrap">
-  <iframe data-testid="embed-iframe" style="border-radius:12px" src="https://open.spotify.com/embed/track/0ztg5yEpHAomj7PJgoQ2Mv?utm_source=generator&autoplay=1" width="100%" height="152" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-</div>
+<div id="spotify-wrap"></div>
 <div id="tweaks">
   <div class="tw-head">Tweaks</div>
   <div class="tw-row"><div class="tw-label">Globe Speed</div><input type="range" id="tw-speed" min="0.2" max="6" step="0.1" value="1"></div>
@@ -176,6 +197,38 @@ html, body { width:100vw; height:100vh; overflow:hidden; background:var(--bg); f
 </div>
 
 <script>
+// ═══════════════════════════════════════════════════
+// SPOTIFY IFRAME API
+// ═══════════════════════════════════════════════════
+let embedController = null;
+let trackPlaying = false;
+
+const playBtn = document.getElementById('play-btn');
+const iconPlay  = playBtn.querySelector('.icon-play');
+const iconPause = playBtn.querySelector('.icon-pause');
+
+function setPlayState(playing) {
+  trackPlaying = playing;
+  iconPlay.style.display  = playing ? 'none'  : 'block';
+  iconPause.style.display = playing ? 'block' : 'none';
+}
+
+window.onSpotifyIframeApiReady = (IFrameAPI) => {
+  IFrameAPI.createController(
+    document.getElementById('spotify-wrap'),
+    { uri: 'spotify:track:0ztg5yEpHAomj7PJgoQ2Mv', width: '100%', height: 152 },
+    (controller) => {
+      embedController = controller;
+      controller.addListener('playback_update', e => setPlayState(!e.data.isPaused));
+    }
+  );
+};
+
+playBtn.addEventListener('click', () => {
+  if (!embedController) return;
+  embedController.togglePlay();
+});
+
 // ═══════════════════════════════════════════════════
 // TWEAKS
 // ═══════════════════════════════════════════════════
